@@ -11,6 +11,7 @@ class AppLoop : public QObject
 
 private:
     QString username_;
+    QString hostname_;
     QVector<ActiveReading*> activeReadings_;
 
 public:

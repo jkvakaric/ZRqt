@@ -1,17 +1,16 @@
+#include "readingtemperatureonewire.h"
 #include "reading.h"
+#include "rtid.h"
 #include <QDateTime>
 #include <QUuid>
 
-Reading::Reading(QString activeReadingId, QString deviceId, QString name, QString ownerUserId, QString readValue, QString readingTypeId, QObject *parent) : QObject(parent)
+Reading::Reading(QObject *parent) : QObject(parent) { }
+
+Reading* Reading::make_reading(int readingTypeId)
 {
-    id_ = QUuid::createUuid().toString();
-    activeReadingId_ = activeReadingId;
-    deviceId_ = deviceId;
-    name_ = name;
-    ownerUserId_ = ownerUserId;
-    readValue_ = readValue;
-    readingTypeId_ = readingTypeId;
-    timestamp_ = QDateTime::currentDateTimeUtc().toString(Qt::ISODate);
+    if(readingTypeId == RTID::TemperatureOneWire)
+        return new ReadingTemperatureOneWire;
+    else return nullptr;
 }
 
 QString Reading::id() const
@@ -52,4 +51,39 @@ QString Reading::readingTypeId() const
 QString Reading::timestamp() const
 {
     return timestamp_;
+}
+
+void Reading::setId(const QString &id)
+{
+    id_ = id;
+}
+
+void Reading::setActiveReadingId(const QString &activeReadingId)
+{
+    activeReadingId_ = activeReadingId;
+}
+
+void Reading::setDeviceId(const QString &deviceId)
+{
+    deviceId_ = deviceId;
+}
+
+void Reading::setName(const QString &name)
+{
+    name_ = name;
+}
+
+void Reading::setOwnerUserId(const QString &ownerUserId)
+{
+    ownerUserId_ = ownerUserId;
+}
+
+void Reading::setReadingTypeId(const QString &readingTypeId)
+{
+    readingTypeId_ = readingTypeId;
+}
+
+void Reading::setTimestamp(const QString &timestamp)
+{
+    timestamp_ = timestamp;
 }

@@ -16,7 +16,9 @@ SOURCES += main.cpp \
     reading.cpp \
     dbconnection.cpp \
     activereading.cpp \
-    apploop.cpp
+    apploop.cpp \
+    readingtemperatureonewire.cpp \
+    rtid.cpp
 
 DEFINES += QT_DEPRECATED_WARNINGS
 
@@ -24,4 +26,6 @@ HEADERS += \
     reading.h \
     dbconnection.h \
     activereading.h \
-    apploop.h
+    apploop.h \
+    readingtemperatureonewire.h \
+    rtid.h

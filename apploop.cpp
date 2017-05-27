@@ -1,7 +1,6 @@
 #include "apploop.h"
 #include "dbconnection.h"
 #include "activereading.h"
-#include <QString>
 #include <QDebug>
 #include <QTimer>
 #include <QFile>
@@ -10,23 +9,38 @@
 #include <QtSql/QSqlError>
 #include <QVectorIterator>
 
-AppLoop::AppLoop(QObject *parent) : QObject(parent) { }
-
-void AppLoop::run()
+AppLoop::AppLoop(QObject *parent) : QObject(parent)
 {
-    QFile file("appconfig");
-    if(!file.open(QIODevice::ReadOnly))
+    QFile fileapp("appconfig");
+    if(!fileapp.open(QIODevice::ReadOnly))
     {
-        qDebug() << file.errorString();
+        qDebug() << fileapp.errorString();
         qDebug() << "ERROR - shutting down - app config not found or unreadable";
         exit(1);
     }
 
-    QTextStream in(&file);
-    username_ = in.readLine();
+    QTextStream inapp(&fileapp);
+    username_ = inapp.readLine();
 
-    file.close();
+    fileapp.close();
 
+    QFile fileh("/etc/hostname");
+
+    if(!fileh.open(QIODevice::ReadOnly))
+    {
+        qDebug() << fileh.errorString();
+        qDebug() << "ERROR - shutting down - hostname not found or unreadable";
+        exit(1);
+    }
+
+    QTextStream in(&fileh);
+    hostname_ = in.readLine();
+
+    fileh.close();
+}
+
+void AppLoop::run()
+{
     QTimer *timer = new QTimer(this);
     connect(timer, &QTimer::timeout, this, &AppLoop::updateActiveReadings);
     timer->setSingleShot(true);
@@ -37,26 +51,12 @@ void AppLoop::run()
 
 void AppLoop::updateActiveReadings()
 {
-    QFile file("/etc/hostname");
-
-    if(!file.open(QIODevice::ReadOnly))
-    {
-        qDebug() << file.errorString();
-        qDebug() << "ERROR - shutting down - hostname not found or unreadable";
-        exit(1);
-    }
-
-    QTextStream in(&file);
-    QString hostname = in.readLine();
-
-    file.close();
-
     QSqlDatabase db = DbConnection::getInstance().db();
 
     if (db.open())
     {
         QSqlQuery query(db);
-        query.exec("SELECT * FROM \"Devices\" WHERE \"Hostname\" = '" + hostname + "' AND \"UserId\" = '" + username_ + "'");
+        query.exec("SELECT * FROM \"Devices\" WHERE \"Hostname\" = '" + hostname_ + "' AND \"UserId\" = '" + username_ + "'");
         while (query.next())
         {
             QString qDeviceId = query.value(0).toString();
@@ -85,7 +85,6 @@ void AppLoop::updateActiveReadings()
                     activeReadings_.push_back(activeReading);
                 }
             }
-
         }
     }
     else qDebug() << db.lastError();

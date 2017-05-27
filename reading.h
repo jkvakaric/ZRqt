@@ -13,12 +13,14 @@ private:
     QString deviceId_;
     QString name_;
     QString ownerUserId_;
-    QString readValue_;
     QString readingTypeId_;
     QString timestamp_;
 
+protected:
+    QString readValue_;
+
 public:
-    explicit Reading(QString activeReadingId, QString deviceId, QString name, QString ownerUserId, QString readValue, QString readingTypeId, QObject *parent = 0);
+    explicit Reading(QObject *parent = 0);
     QString id() const;
     QString activeReadingId() const;
     QString deviceId() const;
@@ -27,6 +29,15 @@ public:
     QString readValue() const;
     QString readingTypeId() const;
     QString timestamp() const;
+    void setId(const QString &id);
+    void setActiveReadingId(const QString &activeReadingId);
+    void setDeviceId(const QString &deviceId);
+    void setName(const QString &name);
+    void setOwnerUserId(const QString &ownerUserId);
+    void setReadingTypeId(const QString &readingTypeId);
+    void setTimestamp(const QString &timestamp);
+    static Reading* make_reading(int readingTypeId);
+    virtual void measure(QString dataFilepath) = 0;
 
 };
 

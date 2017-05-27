@@ -1,14 +1,23 @@
 #include "activereading.h"
 #include "dbconnection.h"
 #include "reading.h"
+#include "rtid.h"
 #include <QDebug>
 #include <QTimer>
 #include <QFile>
+#include <QUuid>
+#include <QDateTime>
 #include <QtSql/QSqlDatabase>
 #include <QtSql/QSqlQuery>
 #include <QtSql/QSqlError>
 
-ActiveReading::ActiveReading(QObject *parent) : QObject(parent)
+ActiveReading::ActiveReading(QString id, QString dataFilepath, QString deviceId, QString name, QString ownerUserId, QString readingTypeId, QObject *parent) : QObject(parent),
+    id_(id),
+    dataFilepath_(dataFilepath),
+    deviceId_(deviceId),
+    name_(name),
+    ownerUserId_(ownerUserId),
+    readingTypeId_(readingTypeId)
 {
     QTimer *timer = new QTimer(this);
     connect(timer, &QTimer::timeout, this, &ActiveReading::update);
@@ -18,88 +27,39 @@ ActiveReading::ActiveReading(QObject *parent) : QObject(parent)
     timer->start(305000);
 }
 
-ActiveReading::ActiveReading(QString id, QString dataFilepath, QString deviceId, QString name, QString ownerUserId, QString readingTypeId, QObject *parent) : ActiveReading(parent)
-{
-    id_ = id;
-    dataFilepath_ = dataFilepath;
-    deviceId_ = deviceId;
-    name_ = name;
-    ownerUserId_ = ownerUserId;
-    readingTypeId_ = readingTypeId;
-}
-
 void ActiveReading::update()
 {
-    QFile file(this->dataFilepath_);
+    Reading *reading = Reading::make_reading(RTIDMap::map.value(readingTypeId_));
 
-    if(!file.open(QIODevice::ReadOnly))
+    if(reading != nullptr)
     {
-        qDebug() << file.errorString();
-        qDebug() << "WARNING - sensor reading source file (" + dataFilepath_ + ") not found or unreadable";
-        return;
+        reading->measure(dataFilepath_);
+
+        QSqlDatabase db = DbConnection::getInstance().db();
+
+        if (db.open())
+        {
+            reading->setId(QUuid::createUuid().toString());
+            reading->setActiveReadingId(id_);
+            reading->setDeviceId(deviceId_);
+            reading->setName(name_);
+            reading->setOwnerUserId(ownerUserId_);
+            reading->setReadingTypeId(readingTypeId_);
+            reading->setTimestamp(QDateTime::currentDateTime().toString(Qt::ISODate));
+
+            QSqlQuery query(db);
+            QString queryString = "INSERT INTO \"Readings\" ( \"Id\", \"ActiveReadingId\", \"DeviceId\", "
+                          "\"Name\", \"OwnerUserId\", \"ReadValue\", \"ReadingTypeId\", \"Timestamp\" ) "
+                          "VALUES ( '" + reading->id() + "', '" + reading->activeReadingId() + "', '" + reading->deviceId() + "', "
+                          "'" + reading->name() + "', '" + reading->ownerUserId() + "', '" + reading->readValue() + "', "
+                          "'" + reading->readingTypeId() + "', '" + reading->timestamp() + "' )";
+
+            if (query.exec(queryString))
+                qDebug() << "SUCCESS - " + queryString;
+
+            delete reading;
+        }
+        else qDebug() << db.lastError();
     }
-
-    QTextStream in(&file);
-    QString read = in.readAll();
-    QString readValue = read.section("t=", 1, 1, QString::SectionSkipEmpty).trimmed();
-    readValue.insert(readValue.size() - 3, '.');
-
-    file.close();
-
-    QSqlDatabase db = DbConnection::getInstance().db();
-
-    if (db.open())
-    {
-        Reading *reading = new Reading(
-                    this->id_,
-                    this->deviceId_,
-                    this->name_,
-                    this->ownerUserId_,
-                    readValue,
-                    this->readingTypeId_);
-
-        QSqlQuery query(db);
-
-        QString queryString = "INSERT INTO \"Readings\" ( \"Id\", \"ActiveReadingId\", \"DeviceId\", "
-                      "\"Name\", \"OwnerUserId\", \"ReadValue\", \"ReadingTypeId\", \"Timestamp\" ) "
-                      "VALUES ( '" + reading->id() + "', '" + reading->activeReadingId() + "', '" + reading->deviceId() + "', "
-                      "'" + reading->name() + "', '" + reading->ownerUserId() + "', '" + reading->readValue() + "', "
-                      "'" + reading->readingTypeId() + "', '" + reading->timestamp() + "' )";
-
-        if (query.exec(queryString))
-            qDebug() << "SUCCESS - " + queryString;
-
-        delete reading;
-    }
-    else qDebug() << db.lastError();
-}
-
-QString ActiveReading::id() const
-{
-    return id_;
-}
-
-QString ActiveReading::dataFilepath() const
-{
-    return dataFilepath_;
-}
-
-QString ActiveReading::deviceId() const
-{
-    return deviceId_;
-}
-
-QString ActiveReading::name() const
-{
-    return name_;
-}
-
-QString ActiveReading::ownerUserId() const
-{
-    return ownerUserId_;
-}
-
-QString ActiveReading::readingTypeId() const
-{
-    return readingTypeId_;
+    else qDebug() << "WARNING - ReadingType specified does not exist";
 }
